@@ -2,6 +2,8 @@ import {useEffect, useState} from 'react';
 
 import styles from './Form.module.css';
 import Button from './Button';
+import Message from './Message';
+import Spinner from './Spinner';
 import BackButton from './BackButton';
 import { useUrlPosition } from '../hooks/UseUrlPosition';
 
@@ -24,21 +26,31 @@ function Form() {
 	const [cityName, setCityName] = useState('');
 	const [date, setDate] = useState(new Date());
 	const [notes, setNotes] = useState('');
+	const [emoji, setEmoji] = useState("")
+	const [geocodingError, setGeocodingError] = useState("")
 
 	useEffect(function() {
+		if (!lat && !lng) return
+
 		async function fetchCityData() {
 			try {
 				setIsLoadingGeocoding(true)
-
+				setGeocodingError("")
 				const res = await fetch(
 					`${BASE_URL}?latitude=${lat}&longitude=${lng}`
 				);
 				const data = await res.json();
-				console.log(data);
+			
+				if (!data.countryCode)
+				throw new Error(
+					"That doesn't seem to be a city. Click somewhere else 😉"
+				);
+
 				setCityName(data.city || data.locality || "")
+				setEmoji(convertToEmoji(data.countryCode))
 
 			} catch(err) {
-				console.log(err)
+				setGeocodingError(err.message)
 
 			} finally {
 				setIsLoadingGeocoding(false)
@@ -46,10 +58,21 @@ function Form() {
 		}
 		fetchCityData()
 	}, [lat, lng])
+
+	function handleSubmit(e) {
+		e.preventDefault()
+		
+	}
+
+	if(isLoadingGeocoding) return <Spinner /> 
 	
+	if(geocodingError) return <Message message={geocodingError} />
+
+	if (!lat && !lng)
+	return <Message message="Start by clicking somewhere on the map" />
 
 	return (
-		<form className={styles.form}>
+		<form className={styles.form} onSubmit={handleSubmit}>
 			<div className={styles.row}>
 				<label htmlFor='cityName'>City name</label>
 				<input
@@ -57,7 +80,7 @@ function Form() {
 					onChange={(e) => setCityName(e.target.value)}
 					value={cityName}
 				/>
-				{/* <span className={styles.flag}>{emoji}</span> */}
+				<span className={styles.flag}>{emoji}</span>
 			</div>
 
 			<div className={styles.row}>
